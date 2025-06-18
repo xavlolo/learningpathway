@@ -33,6 +33,12 @@ st.markdown("""
         border-radius: 50%;
         border: 2px solid #333;
     }
+    .filter-container {
+        background-color: #f0f2f6;
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -47,6 +53,15 @@ pathways = {
     "Education": {"color": "#2ECC71", "symbol": "circle"}, # Green
     "General": {"color": "#9B59B6", "symbol": "circle"}    # Purple
 }
+
+# Define digital proficiency categories
+digital_proficiencies = [
+    "Digital creation, problem-solving and innovation",
+    "Digital learning and development",
+    "Information, data and media literacies",
+    "Digital communication, collaboration and participation",
+    "Digital identity and wellbeing"
+]
 
 # CSV file URL (you can change this to your GitHub raw URL)
 DEFAULT_CSV_URL = "https://raw.githubusercontent.com/yourusername/yourrepo/main/courses.csv"
@@ -102,7 +117,25 @@ def load_demo_data():
                      'Sometimes', 'Sometimes', 'Daily', 'Daily', 'Daily', 'Sometimes', 'Never', 'Sometimes',
                      'Never', 'Daily',
                      'Never', 'Never', 'Never', 'Sometimes', 'Sometimes', 'Daily', 'Never', 'Sometimes',
-                     'Daily', 'Daily', 'Never', 'Never']
+                     'Daily', 'Daily', 'Never', 'Never'],
+        'digital_proficiency': [
+            'Digital learning and development', 'Digital learning and development', 'Digital creation, problem-solving and innovation',
+            'Information, data and media literacies', 'Digital creation, problem-solving and innovation', 'Digital creation, problem-solving and innovation',
+            'Information, data and media literacies', 'Digital creation, problem-solving and innovation', 'Information, data and media literacies',
+            'Digital communication, collaboration and participation', 'Digital learning and development', 'Digital creation, problem-solving and innovation',
+            'Digital learning and development', 'Information, data and media literacies', 'Digital creation, problem-solving and innovation',
+            'Digital communication, collaboration and participation', 'Digital communication, collaboration and participation', 'Information, data and media literacies',
+            'Digital identity and wellbeing', 'Digital communication, collaboration and participation', 'Digital communication, collaboration and participation',
+            'Digital identity and wellbeing', 'Digital identity and wellbeing', 'Information, data and media literacies',
+            'Digital learning and development', 'Digital learning and development', 'Digital creation, problem-solving and innovation',
+            'Digital learning and development', 'Digital identity and wellbeing', 'Digital learning and development',
+            'Digital learning and development', 'Digital creation, problem-solving and innovation', 'Digital learning and development',
+            'Digital creation, problem-solving and innovation',
+            'Digital learning and development', 'Digital creation, problem-solving and innovation', 'Digital creation, problem-solving and innovation',
+            'Digital creation, problem-solving and innovation', 'Digital creation, problem-solving and innovation', 'Digital creation, problem-solving and innovation',
+            'Information, data and media literacies', 'Digital learning and development', 'Digital communication, collaboration and participation',
+            'Digital creation, problem-solving and innovation', 'Digital creation, problem-solving and innovation', 'Information, data and media literacies'
+        ]
     }
     return pd.DataFrame(demo_data)
 
@@ -123,6 +156,45 @@ elif data_source == "Load from URL":
         df = load_demo_data()
 else:
     df = load_demo_data()
+
+# Filter Section
+st.markdown("### 🔍 Search and Filter Courses")
+with st.container():
+    st.markdown('<div class="filter-container">', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([3, 2])
+    
+    with col1:
+        # Search box
+        search_term = st.text_input("🔎 Search courses by name or ID", placeholder="Type to search...")
+        
+    with col2:
+        # Digital proficiency filter
+        selected_proficiency = st.selectbox(
+            "🎯 Filter by Digital Proficiency",
+            ["All"] + digital_proficiencies,
+            help="Filter courses by digital proficiency category"
+        )
+    
+    # Apply filters
+    filtered_df = df.copy()
+    
+    # Apply search filter
+    if search_term:
+        filtered_df = filtered_df[
+            filtered_df['name'].str.contains(search_term, case=False, na=False) |
+            filtered_df['course_id'].str.contains(search_term, case=False, na=False)
+        ]
+    
+    # Apply digital proficiency filter
+    if selected_proficiency != "All" and 'digital_proficiency' in filtered_df.columns:
+        filtered_df = filtered_df[filtered_df['digital_proficiency'] == selected_proficiency]
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# Show filter results
+if search_term or selected_proficiency != "All":
+    st.info(f"Showing {len(filtered_df)} courses matching your filters")
 
 # Pathway selector
 st.markdown("### 🎯 Select Learning Pathways to Display")
@@ -150,9 +222,14 @@ for i in range(3):
     fig.add_shape(type="line", x0=-0.8, y0=i-0.5, x1=2.8, y1=i-0.5,
                   line=dict(color="lightgray", width=1))
 
-# Add course nodes from DataFrame
-for _, course in df.iterrows():
+# Add course nodes from filtered DataFrame
+for _, course in filtered_df.iterrows():
     if selected_pathways.get(course['pathway'], False):
+        # Add hover text with digital proficiency if available
+        hover_text = f"<b>{course['name']}</b><br>Pathway: {course['pathway']}<br>Level: {course['specificity']}<br>Exposure: {course['exposure']}"
+        if 'digital_proficiency' in course and pd.notna(course['digital_proficiency']):
+            hover_text += f"<br>Digital Proficiency: {course['digital_proficiency']}"
+        
         fig.add_trace(go.Scatter(
             x=[course['x']],
             y=[course['y']],
@@ -167,7 +244,7 @@ for _, course in df.iterrows():
             textfont=dict(color="white", size=7, family="Arial Bold"),
             name=course['pathway'],
             showlegend=False,
-            hovertext=f"<b>{course['name']}</b><br>Pathway: {course['pathway']}<br>Level: {course['specificity']}<br>Exposure: {course['exposure']}",
+            hovertext=hover_text,
             hoverinfo="text"
         ))
 
@@ -203,13 +280,24 @@ st.markdown("### 🎨 Pathway Legend")
 cols = st.columns(4)
 for i, (pathway, style) in enumerate(pathways.items()):
     with cols[i]:
-        course_count = len(df[df['pathway'] == pathway])
+        course_count = len(filtered_df[filtered_df['pathway'] == pathway])
         st.markdown(f"""
         <div style="display: flex; align-items: center; gap: 10px;">
             <div style="width: 20px; height: 20px; border-radius: 50%; background-color: {style["color"]}; border: 2px solid #333;"></div>
             <span style="font-weight: 500;">{pathway} ({course_count} courses)</span>
         </div>
         """, unsafe_allow_html=True)
+
+# Digital Proficiency Summary
+if 'digital_proficiency' in filtered_df.columns:
+    st.markdown("### 💻 Digital Proficiency Distribution")
+    proficiency_counts = filtered_df['digital_proficiency'].value_counts()
+    
+    cols = st.columns(len(digital_proficiencies))
+    for i, prof in enumerate(digital_proficiencies):
+        with cols[i]:
+            count = proficiency_counts.get(prof, 0)
+            st.metric(prof.split(',')[0], count)
 
 # Course details section
 st.markdown("### 📚 Course Details")
@@ -218,11 +306,11 @@ st.markdown("*Hover over any node in the graph to see course information*")
 # Summary statistics
 col1, col2, col3, col4 = st.columns(4)
 with col1:
-    st.metric("Total Courses", len(df))
+    st.metric("Total Courses", len(filtered_df))
 with col2:
     st.metric("Active Pathways", sum(selected_pathways.values()))
 with col3:
-    active_courses = len(df[df['pathway'].isin([p for p, sel in selected_pathways.items() if sel])])
+    active_courses = len(filtered_df[filtered_df['pathway'].isin([p for p, sel in selected_pathways.items() if sel])])
     st.metric("Visible Courses", active_courses)
 with col4:
     st.metric("Data Source", data_source)
@@ -234,42 +322,58 @@ if any(selected_pathways.values()):
     
     for i, pathway in enumerate(tab_names):
         with tabs[i]:
-            pathway_courses = df[df['pathway'] == pathway].sort_values(['exposure', 'specificity'])
+            pathway_courses = filtered_df[filtered_df['pathway'] == pathway].sort_values(['exposure', 'specificity'])
             
             for _, course in pathway_courses.iterrows():
                 with st.expander(f"**{course['name']}** ({course['specificity']} - {course['exposure']})"):
-                    st.write(f"**Course ID:** {course['course_id']}")
-                    st.write(f"**Course Type:** {course['specificity']}")
-                    st.write(f"**Experience Level:** {course['exposure']}")
-                    st.write(f"**Learning Pathway:** {course['pathway']}")
+                    col1, col2 = st.columns([2, 1])
                     
-                    # Additional fields from CSV if available
-                    extra_cols = [col for col in df.columns if col not in ['course_id', 'name', 'x', 'y', 'pathway', 'specificity', 'exposure']]
-                    for col in extra_cols:
-                        if pd.notna(course[col]):
-                            st.write(f"**{col.replace('_', ' ').title()}:** {course[col]}")
+                    with col1:
+                        st.write(f"**Course ID:** {course['course_id']}")
+                        st.write(f"**Course Type:** {course['specificity']}")
+                        st.write(f"**Experience Level:** {course['exposure']}")
+                        st.write(f"**Learning Pathway:** {course['pathway']}")
+                        
+                        if 'digital_proficiency' in course and pd.notna(course['digital_proficiency']):
+                            st.write(f"**Digital Proficiency:** {course['digital_proficiency']}")
+                        
+                        # Additional fields from CSV if available
+                        extra_cols = [col for col in filtered_df.columns if col not in 
+                                    ['course_id', 'name', 'x', 'y', 'pathway', 'specificity', 'exposure', 'digital_proficiency']]
+                        for col in extra_cols:
+                            if pd.notna(course[col]):
+                                st.write(f"**{col.replace('_', ' ').title()}:** {course[col]}")
                     
-                    # Placeholder for future dropdown functionality
-                    st.selectbox(
-                        "Select delivery format:",
-                        ["Online Self-Paced", "Virtual Instructor-Led", "In-Person Workshop", "Hybrid"],
-                        key=f"format_{course['course_id']}"
-                    )
-                    
-                    st.button("Enroll", key=f"enroll_{course['course_id']}", use_container_width=True)
+                    with col2:
+                        # Placeholder for future dropdown functionality
+                        st.selectbox(
+                            "Select delivery format:",
+                            ["Online Self-Paced", "Virtual Instructor-Led", "In-Person Workshop", "Hybrid"],
+                            key=f"format_{course['course_id']}"
+                        )
+                        
+                        st.button("Enroll", key=f"enroll_{course['course_id']}", use_container_width=True)
 
 # Instructions
 st.markdown("---")
 st.markdown("### 📖 How to Use This Learning Pathway")
 st.markdown("""
-1. **Load Your Data**: Use the sidebar to upload a CSV file, load from URL, or use demo data
-2. **Select Pathways**: Use the checkboxes above to display different learning pathways
-3. **Explore Courses**: Hover over nodes in the network to see course details
-4. **Course Information**: Click on the pathway tabs below to see detailed course information
-5. **CSV Format**: Your CSV should include columns: course_id, name, x, y, pathway, specificity, exposure
-   - Optional columns: description, duration, prerequisites, learning_outcomes, etc.
+1. **Search & Filter**: Use the search box to find specific courses and filter by digital proficiency
+2. **Load Your Data**: Use the sidebar to upload a CSV file, load from URL, or use demo data
+3. **Select Pathways**: Use the checkboxes to display different learning pathways
+4. **Explore Courses**: Hover over nodes in the network to see course details
+5. **Course Information**: Click on the pathway tabs below to see detailed course information
+
+**Digital Proficiency Categories:**
+- 🎨 **Digital creation, problem-solving and innovation**
+- 📚 **Digital learning and development**
+- 📊 **Information, data and media literacies**
+- 💬 **Digital communication, collaboration and participation**
+- 🌟 **Digital identity and wellbeing**
+
+**CSV Format**: Your CSV should include columns: course_id, name, x, y, pathway, specificity, exposure, digital_proficiency
 """)
 
 # Footer
 st.markdown("---")
-st.info("💡 **Tip**: You can add additional columns to your CSV file such as 'description', 'duration', 'prerequisites', 'learning_outcomes', etc. These will automatically appear in the course details!")
+st.info("💡 **Tip**: Add the 'digital_proficiency' column to your CSV file to enable filtering by digital competencies!")
