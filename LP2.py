@@ -1,5 +1,6 @@
 import streamlit as st
 import plotly.graph_objects as go
+import pandas as pd
 
 # Page config
 st.set_page_config(
@@ -47,106 +48,81 @@ pathways = {
     "General": {"color": "#9B59B6", "symbol": "circle"}    # Purple
 }
 
-# Define grid positions (x: Specificity, y: Exposure)
-# Specificity: 0=Ideas, 1=Hands-on, 2=Issue Specific
-# Exposure: 0=Never, 1=Sometimes, 2=Daily
-grid_positions = {
-    "Ideas": 0,
-    "Hands-on": 1,
-    "Issue Specific": 2,
-    "Never": 0,
-    "Sometimes": 1,
-    "Daily": 2
-}
+# CSV file URL (you can change this to your GitHub raw URL)
+DEFAULT_CSV_URL = "https://raw.githubusercontent.com/yourusername/yourrepo/main/courses.csv"
 
-# Define courses with their positions and pathways
-# Adding offsets to prevent overlapping
-courses = {
-    # Research Pathway (Red)
-    "R1": {"name": "AI Fundamentals", "x": -0.3, "y": -0.2, "pathway": "Research", "spec": "Ideas", "exp": "Never"},
-    "R2": {"name": "ML Theory", "x": -0.3, "y": 0.7, "pathway": "Research", "spec": "Ideas", "exp": "Sometimes"},
-    "R3": {"name": "Deep Learning Concepts", "x": 0.7, "y": 1.3, "pathway": "Research", "spec": "Hands-on", "exp": "Sometimes"},
-    "R4": {"name": "Research Methods", "x": 0.7, "y": 2.3, "pathway": "Research", "spec": "Hands-on", "exp": "Daily"},
-    "R5": {"name": "Advanced Research", "x": 1.7, "y": 2.3, "pathway": "Research", "spec": "Issue Specific", "exp": "Daily"},
-    "R6": {"name": "Neural Networks", "x": 0.3, "y": 1.7, "pathway": "Research", "spec": "Ideas", "exp": "Daily"},
-    "R7": {"name": "Statistics for AI", "x": 0.0, "y": -0.3, "pathway": "Research", "spec": "Ideas", "exp": "Never"},
-    "R8": {"name": "Computer Vision", "x": 1.3, "y": 0.7, "pathway": "Research", "spec": "Hands-on", "exp": "Sometimes"},
-    "R9": {"name": "NLP Research", "x": 1.3, "y": 2.3, "pathway": "Research", "spec": "Hands-on", "exp": "Daily"},
-    "R10": {"name": "Paper Writing", "x": 2.3, "y": 1.7, "pathway": "Research", "spec": "Issue Specific", "exp": "Daily"},
-    "R11": {"name": "Math for ML", "x": -0.1, "y": 0.1, "pathway": "Research", "spec": "Ideas", "exp": "Never"},
-    "R12": {"name": "Reinforcement Learning", "x": 0.9, "y": 1.1, "pathway": "Research", "spec": "Hands-on", "exp": "Sometimes"},
-    
-    # Admin Pathway (Blue)
-    "A1": {"name": "AI for Management", "x": 0.3, "y": 0.3, "pathway": "Admin", "spec": "Ideas", "exp": "Never"},
-    "A2": {"name": "Data Governance", "x": 1.3, "y": -0.3, "pathway": "Admin", "spec": "Hands-on", "exp": "Never"},
-    "A3": {"name": "AI Strategy", "x": 1.3, "y": 0.7, "pathway": "Admin", "spec": "Hands-on", "exp": "Sometimes"},
-    "A4": {"name": "Implementation Planning", "x": 2.3, "y": 0.7, "pathway": "Admin", "spec": "Issue Specific", "exp": "Sometimes"},
-    "A5": {"name": "AI Leadership", "x": 2.3, "y": 2.3, "pathway": "Admin", "spec": "Issue Specific", "exp": "Daily"},
-    "A6": {"name": "Budget & ROI", "x": 2.3, "y": 0.3, "pathway": "Admin", "spec": "Issue Specific", "exp": "Never"},
-    "A7": {"name": "AI Ethics Policy", "x": -0.3, "y": 1.3, "pathway": "Admin", "spec": "Ideas", "exp": "Sometimes"},
-    "A8": {"name": "Team Building", "x": 0.7, "y": 0.3, "pathway": "Admin", "spec": "Hands-on", "exp": "Never"},
-    "A9": {"name": "Change Management", "x": 1.7, "y": 1.3, "pathway": "Admin", "spec": "Issue Specific", "exp": "Sometimes"},
-    "A10": {"name": "Risk Assessment", "x": 0.7, "y": 1.7, "pathway": "Admin", "spec": "Hands-on", "exp": "Daily"},
-    "A11": {"name": "AI Compliance", "x": 1.1, "y": -0.1, "pathway": "Admin", "spec": "Hands-on", "exp": "Never"},
-    "A12": {"name": "Performance Metrics", "x": 1.9, "y": 0.9, "pathway": "Admin", "spec": "Issue Specific", "exp": "Sometimes"},
-    
-    # Education Pathway (Green)
-    "E1": {"name": "Teaching AI Basics", "x": 0.3, "y": 1.3, "pathway": "Education", "spec": "Ideas", "exp": "Sometimes"},
-    "E2": {"name": "Curriculum Design", "x": 1.0, "y": 1.3, "pathway": "Education", "spec": "Hands-on", "exp": "Sometimes"},
-    "E3": {"name": "Hands-on Workshops", "x": 1.0, "y": 1.7, "pathway": "Education", "spec": "Hands-on", "exp": "Daily"},
-    "E4": {"name": "Advanced Pedagogy", "x": 2.0, "y": 1.7, "pathway": "Education", "spec": "Issue Specific", "exp": "Daily"},
-    "E5": {"name": "AI Ethics Teaching", "x": -0.3, "y": 2.3, "pathway": "Education", "spec": "Ideas", "exp": "Daily"},
-    "E6": {"name": "Learning Assessment", "x": 2.0, "y": 1.3, "pathway": "Education", "spec": "Issue Specific", "exp": "Sometimes"},
-    "E7": {"name": "Educational Tools", "x": 1.0, "y": 0.3, "pathway": "Education", "spec": "Hands-on", "exp": "Never"},
-    "E8": {"name": "Student Projects", "x": 1.7, "y": 0.7, "pathway": "Education", "spec": "Issue Specific", "exp": "Sometimes"},
-    "E9": {"name": "Online Teaching", "x": 0.7, "y": -0.1, "pathway": "Education", "spec": "Hands-on", "exp": "Never"},
-    "E10": {"name": "AI Lab Setup", "x": 1.3, "y": 1.9, "pathway": "Education", "spec": "Hands-on", "exp": "Daily"},
-    
-    # General Pathway (Purple)
-    "G1": {"name": "AI Overview", "x": -0.1, "y": 0.3, "pathway": "General", "spec": "Ideas", "exp": "Never"},
-    "G2": {"name": "Basic Python", "x": 1.0, "y": 0.1, "pathway": "General", "spec": "Hands-on", "exp": "Never"},
-    "G3": {"name": "Applied AI", "x": 2.0, "y": -0.3, "pathway": "General", "spec": "Issue Specific", "exp": "Never"},
-    "G4": {"name": "AI Tools", "x": 1.0, "y": 0.9, "pathway": "General", "spec": "Hands-on", "exp": "Sometimes"},
-    "G5": {"name": "Problem Solving", "x": 2.0, "y": 1.1, "pathway": "General", "spec": "Issue Specific", "exp": "Sometimes"},
-    "G6": {"name": "AI Applications", "x": 2.0, "y": 2.1, "pathway": "General", "spec": "Issue Specific", "exp": "Daily"},
-    "G7": {"name": "Data Basics", "x": 0.3, "y": 0.0, "pathway": "General", "spec": "Ideas", "exp": "Never"},
-    "G8": {"name": "ML Concepts", "x": -0.1, "y": 1.1, "pathway": "General", "spec": "Ideas", "exp": "Sometimes"},
-    "G9": {"name": "AI in Business", "x": 0.3, "y": 2.1, "pathway": "General", "spec": "Ideas", "exp": "Daily"},
-    "G10": {"name": "Practical Projects", "x": 1.3, "y": 2.1, "pathway": "General", "spec": "Hands-on", "exp": "Daily"},
-    "G11": {"name": "AI Tools Basics", "x": 0.7, "y": -0.3, "pathway": "General", "spec": "Hands-on", "exp": "Never"},
-    "G12": {"name": "Industry Cases", "x": 1.7, "y": 0.1, "pathway": "General", "spec": "Issue Specific", "exp": "Never"},
-}
+# Load data
+st.sidebar.markdown("### 📁 Data Source")
+data_source = st.sidebar.radio(
+    "Choose data source:",
+    ["Upload CSV", "Load from URL", "Use Demo Data"]
+)
 
-# Define connections for each pathway
-connections = {
-    "Research": [
-        ("R1", "R2"), ("R1", "R7"), ("R7", "R2"), ("R2", "R3"), 
-        ("R3", "R4"), ("R3", "R8"), ("R8", "R9"), ("R4", "R5"), 
-        ("R2", "R6"), ("R6", "R4"), ("R4", "R9"), ("R9", "R5"), 
-        ("R5", "R10"), ("R8", "R10"), ("R11", "R1"), ("R11", "R2"),
-        ("R12", "R3"), ("R12", "R8"), ("R1", "R11")
-    ],
-    "Admin": [
-        ("A1", "A2"), ("A1", "A8"), ("A8", "A2"), ("A2", "A3"), 
-        ("A3", "A4"), ("A4", "A5"), ("A2", "A6"), ("A6", "A4"), 
-        ("A7", "A3"), ("A7", "A10"), ("A10", "A5"), ("A3", "A9"), 
-        ("A9", "A5"), ("A8", "A3"), ("A11", "A2"), ("A11", "A3"),
-        ("A12", "A4"), ("A12", "A9"), ("A6", "A12")
-    ],
-    "Education": [
-        ("E1", "E2"), ("E2", "E3"), ("E3", "E4"), ("E1", "E5"), 
-        ("E5", "E3"), ("E2", "E6"), ("E6", "E4"), ("E7", "E2"), 
-        ("E7", "E8"), ("E8", "E6"), ("E1", "E7"), ("E9", "E7"),
-        ("E9", "E2"), ("E10", "E3"), ("E10", "E4"), ("E3", "E10")
-    ],
-    "General": [
-        ("G1", "G2"), ("G1", "G7"), ("G7", "G2"), ("G2", "G3"), 
-        ("G2", "G4"), ("G4", "G5"), ("G5", "G6"), ("G8", "G4"), 
-        ("G8", "G9"), ("G9", "G10"), ("G10", "G6"), ("G3", "G5"), 
-        ("G1", "G8"), ("G11", "G2"), ("G11", "G4"), ("G12", "G3"),
-        ("G12", "G5"), ("G2", "G12")
-    ]
-}
+@st.cache_data
+def load_demo_data():
+    # Demo data as a fallback
+    demo_data = {
+        'course_id': ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8', 'R9', 'R10', 'R11', 'R12',
+                      'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'A11', 'A12',
+                      'E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8', 'E9', 'E10',
+                      'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10', 'G11', 'G12'],
+        'name': ['AI Fundamentals', 'ML Theory', 'Deep Learning Concepts', 'Research Methods', 'Advanced Research',
+                 'Neural Networks', 'Statistics for AI', 'Computer Vision', 'NLP Research', 'Paper Writing',
+                 'Math for ML', 'Reinforcement Learning',
+                 'AI for Management', 'Data Governance', 'AI Strategy', 'Implementation Planning', 'AI Leadership',
+                 'Budget & ROI', 'AI Ethics Policy', 'Team Building', 'Change Management', 'Risk Assessment',
+                 'AI Compliance', 'Performance Metrics',
+                 'Teaching AI Basics', 'Curriculum Design', 'Hands-on Workshops', 'Advanced Pedagogy',
+                 'AI Ethics Teaching', 'Learning Assessment', 'Educational Tools', 'Student Projects',
+                 'Online Teaching', 'AI Lab Setup',
+                 'AI Overview', 'Basic Python', 'Applied AI', 'AI Tools', 'Problem Solving', 'AI Applications',
+                 'Data Basics', 'ML Concepts', 'AI in Business', 'Practical Projects', 'AI Tools Basics',
+                 'Industry Cases'],
+        'x': [-0.3, -0.3, 0.7, 0.7, 1.7, 0.3, 0.0, 1.3, 1.3, 2.3, -0.1, 0.9,
+              0.3, 1.3, 1.3, 2.3, 2.3, 2.3, -0.3, 0.7, 1.7, 0.7, 1.1, 1.9,
+              0.3, 1.0, 1.0, 2.0, -0.3, 2.0, 1.0, 1.7, 0.7, 1.3,
+              -0.1, 1.0, 2.0, 1.0, 2.0, 2.0, 0.3, -0.1, 0.3, 1.3, 0.7, 1.7],
+        'y': [-0.2, 0.7, 1.3, 2.3, 2.3, 1.7, -0.3, 0.7, 2.3, 1.7, 0.1, 1.1,
+              0.3, -0.3, 0.7, 0.7, 2.3, 0.3, 1.3, 0.3, 1.3, 1.7, -0.1, 0.9,
+              1.3, 1.3, 1.7, 1.7, 2.3, 1.3, 0.3, 0.7, -0.1, 1.9,
+              0.3, 0.1, -0.3, 0.9, 1.1, 2.1, 0.0, 1.1, 2.1, 2.1, -0.3, 0.1],
+        'pathway': ['Research']*12 + ['Admin']*12 + ['Education']*10 + ['General']*12,
+        'specificity': ['Ideas', 'Ideas', 'Hands-on', 'Hands-on', 'Issue Specific', 'Ideas', 'Ideas',
+                        'Hands-on', 'Hands-on', 'Issue Specific', 'Ideas', 'Hands-on',
+                        'Ideas', 'Hands-on', 'Hands-on', 'Issue Specific', 'Issue Specific', 'Issue Specific',
+                        'Ideas', 'Hands-on', 'Issue Specific', 'Hands-on', 'Hands-on', 'Issue Specific',
+                        'Ideas', 'Hands-on', 'Hands-on', 'Issue Specific', 'Ideas', 'Issue Specific',
+                        'Hands-on', 'Issue Specific', 'Hands-on', 'Hands-on',
+                        'Ideas', 'Hands-on', 'Issue Specific', 'Hands-on', 'Issue Specific', 'Issue Specific',
+                        'Ideas', 'Ideas', 'Ideas', 'Hands-on', 'Hands-on', 'Issue Specific'],
+        'exposure': ['Never', 'Sometimes', 'Sometimes', 'Daily', 'Daily', 'Daily', 'Never', 'Sometimes',
+                     'Daily', 'Daily', 'Never', 'Sometimes',
+                     'Never', 'Never', 'Sometimes', 'Sometimes', 'Daily', 'Never', 'Sometimes', 'Never',
+                     'Sometimes', 'Daily', 'Never', 'Sometimes',
+                     'Sometimes', 'Sometimes', 'Daily', 'Daily', 'Daily', 'Sometimes', 'Never', 'Sometimes',
+                     'Never', 'Daily',
+                     'Never', 'Never', 'Never', 'Sometimes', 'Sometimes', 'Daily', 'Never', 'Sometimes',
+                     'Daily', 'Daily', 'Never', 'Never']
+    }
+    return pd.DataFrame(demo_data)
+
+# Load data based on selection
+if data_source == "Upload CSV":
+    uploaded_file = st.sidebar.file_uploader("Choose a CSV file", type="csv")
+    if uploaded_file is not None:
+        df = pd.read_csv(uploaded_file)
+    else:
+        st.info("Please upload a CSV file or select another data source.")
+        df = load_demo_data()
+elif data_source == "Load from URL":
+    csv_url = st.sidebar.text_input("CSV URL:", value=DEFAULT_CSV_URL)
+    try:
+        df = pd.read_csv(csv_url)
+    except:
+        st.error("Could not load CSV from URL. Using demo data instead.")
+        df = load_demo_data()
+else:
+    df = load_demo_data()
 
 # Pathway selector
 st.markdown("### 🎯 Select Learning Pathways to Display")
@@ -174,59 +150,24 @@ for i in range(3):
     fig.add_shape(type="line", x0=-0.8, y0=i-0.5, x1=2.8, y1=i-0.5,
                   line=dict(color="lightgray", width=1))
 
-# Add pathway connections
-for pathway, edges in connections.items():
-    if selected_pathways.get(pathway, False):
-        for edge in edges:
-            start_course = courses[edge[0]]
-            end_course = courses[edge[1]]
-            
-            # Calculate control point for curved line
-            mid_x = (start_course["x"] + end_course["x"]) / 2
-            mid_y = (start_course["y"] + end_course["y"]) / 2
-            
-            # Add some curvature
-            if abs(start_course["x"] - end_course["x"]) > 0.5:
-                mid_y += 0.05
-            if abs(start_course["y"] - end_course["y"]) > 0.5:
-                mid_x += 0.05
-            
-            # Create curved path
-            import numpy as np
-            t = np.linspace(0, 1, 50)
-            x_curve = (1-t)**2 * start_course["x"] + 2*(1-t)*t * mid_x + t**2 * end_course["x"]
-            y_curve = (1-t)**2 * start_course["y"] + 2*(1-t)*t * mid_y + t**2 * end_course["y"]
-            
-            # Add edge
-            fig.add_trace(go.Scatter(
-                x=x_curve,
-                y=y_curve,
-                mode="lines",
-                line=dict(color=pathways[pathway]["color"], width=2),
-                name=pathway,
-                showlegend=False,
-                hoverinfo="skip",
-                opacity=0.7
-            ))
-
-# Add course nodes
-for course_id, course in courses.items():
-    if selected_pathways.get(course["pathway"], False):
+# Add course nodes from DataFrame
+for _, course in df.iterrows():
+    if selected_pathways.get(course['pathway'], False):
         fig.add_trace(go.Scatter(
-            x=[course["x"]],
-            y=[course["y"]],
+            x=[course['x']],
+            y=[course['y']],
             mode="markers+text",
             marker=dict(
                 size=18,
-                color=pathways[course["pathway"]]["color"],
+                color=pathways[course['pathway']]["color"],
                 line=dict(color="white", width=1)
             ),
-            text=[course_id],
+            text=[course['course_id']],
             textposition="middle center",
             textfont=dict(color="white", size=7, family="Arial Bold"),
-            name=course["pathway"],
+            name=course['pathway'],
             showlegend=False,
-            hovertext=f"<b>{course['name']}</b><br>Pathway: {course['pathway']}<br>Level: {course['spec']}<br>Exposure: {course['exp']}",
+            hovertext=f"<b>{course['name']}</b><br>Pathway: {course['pathway']}<br>Level: {course['specificity']}<br>Exposure: {course['exposure']}",
             hoverinfo="text"
         ))
 
@@ -262,7 +203,7 @@ st.markdown("### 🎨 Pathway Legend")
 cols = st.columns(4)
 for i, (pathway, style) in enumerate(pathways.items()):
     with cols[i]:
-        course_count = len([c for c in courses.values() if c["pathway"] == pathway])
+        course_count = len(df[df['pathway'] == pathway])
         st.markdown(f"""
         <div style="display: flex; align-items: center; gap: 10px;">
             <div style="width: 20px; height: 20px; border-radius: 50%; background-color: {style["color"]}; border: 2px solid #333;"></div>
@@ -277,15 +218,14 @@ st.markdown("*Hover over any node in the graph to see course information*")
 # Summary statistics
 col1, col2, col3, col4 = st.columns(4)
 with col1:
-    st.metric("Total Courses", len(courses))
+    st.metric("Total Courses", len(df))
 with col2:
     st.metric("Active Pathways", sum(selected_pathways.values()))
 with col3:
-    active_courses = len([c for c in courses.values() if selected_pathways.get(c["pathway"], False)])
+    active_courses = len(df[df['pathway'].isin([p for p, sel in selected_pathways.items() if sel])])
     st.metric("Visible Courses", active_courses)
 with col4:
-    active_connections = sum([len(connections[p]) for p in pathways if selected_pathways.get(p, False)])
-    st.metric("Connections", active_connections)
+    st.metric("Data Source", data_source)
 
 # Display selected courses in tabs
 if any(selected_pathways.values()):
@@ -294,38 +234,42 @@ if any(selected_pathways.values()):
     
     for i, pathway in enumerate(tab_names):
         with tabs[i]:
-            pathway_courses = [c for c in courses.values() if c["pathway"] == pathway]
+            pathway_courses = df[df['pathway'] == pathway].sort_values(['exposure', 'specificity'])
             
-            for course in pathway_courses:
-                with st.expander(f"**{course['name']}** ({course['spec']} - {course['exp']})"):
-                    st.write(f"**Course Type:** {course['spec']}")
-                    st.write(f"**Experience Level:** {course['exp']}")
+            for _, course in pathway_courses.iterrows():
+                with st.expander(f"**{course['name']}** ({course['specificity']} - {course['exposure']})"):
+                    st.write(f"**Course ID:** {course['course_id']}")
+                    st.write(f"**Course Type:** {course['specificity']}")
+                    st.write(f"**Experience Level:** {course['exposure']}")
                     st.write(f"**Learning Pathway:** {course['pathway']}")
+                    
+                    # Additional fields from CSV if available
+                    extra_cols = [col for col in df.columns if col not in ['course_id', 'name', 'x', 'y', 'pathway', 'specificity', 'exposure']]
+                    for col in extra_cols:
+                        if pd.notna(course[col]):
+                            st.write(f"**{col.replace('_', ' ').title()}:** {course[col]}")
                     
                     # Placeholder for future dropdown functionality
                     st.selectbox(
                         "Select delivery format:",
                         ["Online Self-Paced", "Virtual Instructor-Led", "In-Person Workshop", "Hybrid"],
-                        key=f"format_{course['name']}"
+                        key=f"format_{course['course_id']}"
                     )
                     
-                    st.button("Enroll", key=f"enroll_{course['name']}", use_container_width=True)
+                    st.button("Enroll", key=f"enroll_{course['course_id']}", use_container_width=True)
 
 # Instructions
 st.markdown("---")
 st.markdown("### 📖 How to Use This Learning Pathway")
 st.markdown("""
-1. **Select Pathways**: Use the checkboxes above to display different learning pathways
-2. **Explore Courses**: Hover over nodes in the network to see course details
-3. **Follow Connections**: Lines show the recommended progression through courses
-4. **Choose Your Path**: Each pathway is designed for different roles and goals:
-   - 🔴 **Research** (12 courses): For those pursuing AI research and advanced theory
-   - 🔵 **Admin** (12 courses): For managers and leaders implementing AI strategies
-   - 🟢 **Education** (10 courses): For educators teaching AI concepts
-   - 🟣 **General** (12 courses): For general practitioners and beginners
-5. **Navigate Complexity**: Courses progress from left to right (Ideas → Hands-on → Issue Specific) and bottom to top (Never → Sometimes → Daily)
+1. **Load Your Data**: Use the sidebar to upload a CSV file, load from URL, or use demo data
+2. **Select Pathways**: Use the checkboxes above to display different learning pathways
+3. **Explore Courses**: Hover over nodes in the network to see course details
+4. **Course Information**: Click on the pathway tabs below to see detailed course information
+5. **CSV Format**: Your CSV should include columns: course_id, name, x, y, pathway, specificity, exposure
+   - Optional columns: description, duration, prerequisites, learning_outcomes, etc.
 """)
 
 # Footer
 st.markdown("---")
-st.info("💡 **Next Steps**: Select courses from your chosen pathway and build your personalized learning journey! With 46 total courses across 4 pathways, there are multiple routes to AI mastery.")
+st.info("💡 **Tip**: You can add additional columns to your CSV file such as 'description', 'duration', 'prerequisites', 'learning_outcomes', etc. These will automatically appear in the course details!")
