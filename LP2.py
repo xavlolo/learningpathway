@@ -1,10 +1,11 @@
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
+import numpy as np
 
 # Page config
 st.set_page_config(
-    page_title="AI Learning Pathway",
+    page_title="AI Training Offers Learning Pathway",
     page_icon="🤖",
     layout="wide"
 )
@@ -43,138 +44,155 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Title
-st.title("🤖 AI Learning Pathway Network")
-st.markdown("### Interactive Learning Pathways: Choose Your Journey")
+st.title("🤖 AI Training Offers Learning Pathway")
+st.markdown("### Interactive Learning Pathways: Explore Available Training Sessions")
 
-# Define pathways with colors
+# Define pathways with colors (based on actual CSV Learning Pathway column)
 pathways = {
-    "Research": {"color": "#E74C3C", "symbol": "circle"},  # Red
-    "Admin": {"color": "#3498DB", "symbol": "circle"},     # Blue
-    "Education": {"color": "#2ECC71", "symbol": "circle"}, # Green
-    "General": {"color": "#9B59B6", "symbol": "circle"}    # Purple
+    "Engineering": {"color": "#E74C3C", "symbol": "circle"},  # Red
+    "Operation": {"color": "#3498DB", "symbol": "circle"},    # Blue
+    "Research": {"color": "#2ECC71", "symbol": "circle"},     # Green
+    "Education": {"color": "#9B59B6", "symbol": "circle"}     # Purple
 }
 
-# Define digital proficiency categories
-digital_proficiencies = [
-    "Digital creation, problem-solving and innovation",
-    "Digital learning and development",
-    "Information, data and media literacies",
-    "Digital communication, collaboration and participation",
-    "Digital identity and wellbeing"
-]
-
-# CSV file URL (you can change this to your GitHub raw URL)
-DEFAULT_CSV_URL = "https://raw.githubusercontent.com/yourusername/yourrepo/main/courses.csv"
+# Function to process training offers data
+@st.cache_data
+def process_training_data(df):
+    """Process the training offers data to match the expected format"""
+    processed_data = []
+    
+    for idx, row in df.iterrows():
+        # Generate course ID
+        course_id = f"T{idx+1:02d}"
+        
+        # Map exposure level
+        exposure_mapping = {
+            "Lv. 1 - Never used AI": "Never",
+            "Lv. 2 - Sometimes use AI": "Sometimes", 
+            "Lv. 3 - Use AI on a daily basis": "Daily",
+            "Lv. Anyone": "Anyone"
+        }
+        exposure = exposure_mapping.get(row['Audience Exposure Level'], 'Anyone')
+        
+        # Map specificity
+        specificity_mapping = {
+            "Lv.1 - Ideas": "Ideas",
+            "Lv.2 - Hands On": "Hands-on",
+            "Lv.3 - Issue Specific": "Issue Specific"
+        }
+        specificity = specificity_mapping.get(row['Specificity'], 'Ideas')
+        
+        # Use the actual Learning Pathway from CSV (clean up any trailing spaces)
+        pathway = row['Learning Pathway'].strip() if pd.notna(row['Learning Pathway']) else 'General'
+        
+        # Generate coordinates based on specificity and exposure
+        specificity_x = {"Ideas": 0, "Hands-on": 1, "Issue Specific": 2}
+        exposure_y = {"Never": 0, "Sometimes": 1, "Daily": 2, "Anyone": 1.5}
+        
+        # Add some randomness to avoid overlapping
+        x = specificity_x.get(specificity, 0) + np.random.uniform(-0.3, 0.3)
+        y = exposure_y.get(exposure, 1) + np.random.uniform(-0.3, 0.3)
+        
+        processed_data.append({
+            'course_id': course_id,
+            'name': row['Name'],
+            'instructor': row['Instructor/Presenter'],
+            'description': row['Short description'],
+            'x': x,
+            'y': y,
+            'pathway': pathway,
+            'specificity': specificity,
+            'exposure': exposure,
+            'original_exposure': row['Audience Exposure Level'],
+            'original_specificity': row['Specificity']
+        })
+    
+    return pd.DataFrame(processed_data)
 
 # Load data
 st.sidebar.markdown("### 📁 Data Source")
 data_source = st.sidebar.radio(
     "Choose data source:",
-    ["Upload CSV", "Load from URL", "Use Demo Data"]
+    ["Training Offers Database", "Upload CSV", "Use Demo Data"]
 )
+
+@st.cache_data
+def load_training_data():
+    """Load the training offers database"""
+    try:
+        # Try to load the training database
+        df = pd.read_csv('TrainingOffersDatabase2025.csv')
+        return process_training_data(df)
+    except FileNotFoundError:
+        st.error("Training Offers Database2025.csv not found. Please upload the file.")
+        return None
+    except Exception as e:
+        st.error(f"Error loading training database: {str(e)}")
+        return None
 
 @st.cache_data
 def load_demo_data():
     # Demo data as a fallback
     demo_data = {
-        'course_id': ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8', 'R9', 'R10', 'R11', 'R12',
-                      'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'A11', 'A12',
-                      'E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8', 'E9', 'E10',
-                      'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10', 'G11', 'G12'],
-        'name': ['AI Fundamentals', 'ML Theory', 'Deep Learning Concepts', 'Research Methods', 'Advanced Research',
-                 'Neural Networks', 'Statistics for AI', 'Computer Vision', 'NLP Research', 'Paper Writing',
-                 'Math for ML', 'Reinforcement Learning',
-                 'AI for Management', 'Data Governance', 'AI Strategy', 'Implementation Planning', 'AI Leadership',
-                 'Budget & ROI', 'AI Ethics Policy', 'Team Building', 'Change Management', 'Risk Assessment',
-                 'AI Compliance', 'Performance Metrics',
-                 'Teaching AI Basics', 'Curriculum Design', 'Hands-on Workshops', 'Advanced Pedagogy',
-                 'AI Ethics Teaching', 'Learning Assessment', 'Educational Tools', 'Student Projects',
-                 'Online Teaching', 'AI Lab Setup',
-                 'AI Overview', 'Basic Python', 'Applied AI', 'AI Tools', 'Problem Solving', 'AI Applications',
-                 'Data Basics', 'ML Concepts', 'AI in Business', 'Practical Projects', 'AI Tools Basics',
-                 'Industry Cases'],
-        'x': [-0.3, -0.3, 0.7, 0.7, 1.7, 0.3, 0.0, 1.3, 1.3, 2.3, -0.1, 0.9,
-              0.3, 1.3, 1.3, 2.3, 2.3, 2.3, -0.3, 0.7, 1.7, 0.7, 1.1, 1.9,
-              0.3, 1.0, 1.0, 2.0, -0.3, 2.0, 1.0, 1.7, 0.7, 1.3,
-              -0.1, 1.0, 2.0, 1.0, 2.0, 2.0, 0.3, -0.1, 0.3, 1.3, 0.7, 1.7],
-        'y': [-0.2, 0.7, 1.3, 2.3, 2.3, 1.7, -0.3, 0.7, 2.3, 1.7, 0.1, 1.1,
-              0.3, -0.3, 0.7, 0.7, 2.3, 0.3, 1.3, 0.3, 1.3, 1.7, -0.1, 0.9,
-              1.3, 1.3, 1.7, 1.7, 2.3, 1.3, 0.3, 0.7, -0.1, 1.9,
-              0.3, 0.1, -0.3, 0.9, 1.1, 2.1, 0.0, 1.1, 2.1, 2.1, -0.3, 0.1],
-        'pathway': ['Research']*12 + ['Admin']*12 + ['Education']*10 + ['General']*12,
-        'specificity': ['Ideas', 'Ideas', 'Hands-on', 'Hands-on', 'Issue Specific', 'Ideas', 'Ideas',
-                        'Hands-on', 'Hands-on', 'Issue Specific', 'Ideas', 'Hands-on',
-                        'Ideas', 'Hands-on', 'Hands-on', 'Issue Specific', 'Issue Specific', 'Issue Specific',
-                        'Ideas', 'Hands-on', 'Issue Specific', 'Hands-on', 'Hands-on', 'Issue Specific',
-                        'Ideas', 'Hands-on', 'Hands-on', 'Issue Specific', 'Ideas', 'Issue Specific',
-                        'Hands-on', 'Issue Specific', 'Hands-on', 'Hands-on',
-                        'Ideas', 'Hands-on', 'Issue Specific', 'Hands-on', 'Issue Specific', 'Issue Specific',
-                        'Ideas', 'Ideas', 'Ideas', 'Hands-on', 'Hands-on', 'Issue Specific'],
-        'exposure': ['Never', 'Sometimes', 'Sometimes', 'Daily', 'Daily', 'Daily', 'Never', 'Sometimes',
-                     'Daily', 'Daily', 'Never', 'Sometimes',
-                     'Never', 'Never', 'Sometimes', 'Sometimes', 'Daily', 'Never', 'Sometimes', 'Never',
-                     'Sometimes', 'Daily', 'Never', 'Sometimes',
-                     'Sometimes', 'Sometimes', 'Daily', 'Daily', 'Daily', 'Sometimes', 'Never', 'Sometimes',
-                     'Never', 'Daily',
-                     'Never', 'Never', 'Never', 'Sometimes', 'Sometimes', 'Daily', 'Never', 'Sometimes',
-                     'Daily', 'Daily', 'Never', 'Never'],
-        'digital_proficiency': [
-            'Digital learning and development', 'Digital learning and development', 'Digital creation, problem-solving and innovation',
-            'Information, data and media literacies', 'Digital creation, problem-solving and innovation', 'Digital creation, problem-solving and innovation',
-            'Information, data and media literacies', 'Digital creation, problem-solving and innovation', 'Information, data and media literacies',
-            'Digital communication, collaboration and participation', 'Digital learning and development', 'Digital creation, problem-solving and innovation',
-            'Digital learning and development', 'Information, data and media literacies', 'Digital creation, problem-solving and innovation',
-            'Digital communication, collaboration and participation', 'Digital communication, collaboration and participation', 'Information, data and media literacies',
-            'Digital identity and wellbeing', 'Digital communication, collaboration and participation', 'Digital communication, collaboration and participation',
-            'Digital identity and wellbeing', 'Digital identity and wellbeing', 'Information, data and media literacies',
-            'Digital learning and development', 'Digital learning and development', 'Digital creation, problem-solving and innovation',
-            'Digital learning and development', 'Digital identity and wellbeing', 'Digital learning and development',
-            'Digital learning and development', 'Digital creation, problem-solving and innovation', 'Digital learning and development',
-            'Digital creation, problem-solving and innovation',
-            'Digital learning and development', 'Digital creation, problem-solving and innovation', 'Digital creation, problem-solving and innovation',
-            'Digital creation, problem-solving and innovation', 'Digital creation, problem-solving and innovation', 'Digital creation, problem-solving and innovation',
-            'Information, data and media literacies', 'Digital learning and development', 'Digital communication, collaboration and participation',
-            'Digital creation, problem-solving and innovation', 'Digital creation, problem-solving and innovation', 'Information, data and media literacies'
-        ]
+        'course_id': ['T01', 'T02', 'T03', 'T04', 'T05', 'T06'],
+        'name': ['AI Development Basics', 'Operations with AI', 'AI Leadership', 'General AI Overview', 'Advanced AI Tools', 'AI Ethics'],
+        'instructor': ['John Doe', 'Jane Smith', 'Bob Johnson', 'Alice Brown', 'Charlie Wilson', 'Diana Lee'],
+        'description': ['Learn AI development fundamentals', 'AI in operations', 'Leading AI initiatives', 'General AI concepts', 'Advanced AI applications', 'AI ethics and governance'],
+        'x': [0.1, 1.2, 2.1, 0.8, 1.5, 0.3],
+        'y': [0.2, 1.1, 2.0, 0.5, 1.8, 1.3],
+        'pathway': ['Engineering', 'Operation', 'Research', 'Education', 'Engineering', 'Research'],
+        'specificity': ['Ideas', 'Hands-on', 'Issue Specific', 'Ideas', 'Hands-on', 'Ideas'],
+        'exposure': ['Never', 'Sometimes', 'Daily', 'Anyone', 'Daily', 'Sometimes'],
+        'original_exposure': ['Lv. 1 - Never used AI', 'Lv. 2 - Sometimes use AI', 'Lv. 3 - Use AI on a daily basis', 'Lv. Anyone', 'Lv. 3 - Use AI on a daily basis', 'Lv. 2 - Sometimes use AI'],
+        'original_specificity': ['Lv.1 - Ideas', 'Lv.2 - Hands On', 'Lv.3 - Issue Specific', 'Lv.1 - Ideas', 'Lv.2 - Hands On', 'Lv.1 - Ideas']
     }
     return pd.DataFrame(demo_data)
 
 # Load data based on selection
-if data_source == "Upload CSV":
+if data_source == "Training Offers Database":
+    df = load_training_data()
+    if df is None:
+        st.info("Using demo data instead.")
+        df = load_demo_data()
+elif data_source == "Upload CSV":
     uploaded_file = st.sidebar.file_uploader("Choose a CSV file", type="csv")
     if uploaded_file is not None:
-        df = pd.read_csv(uploaded_file)
+        try:
+            raw_df = pd.read_csv(uploaded_file)
+            if 'Name' in raw_df.columns and 'Instructor/Presenter' in raw_df.columns and 'Learning Pathway' in raw_df.columns:
+                df = process_training_data(raw_df)
+            else:
+                st.error("CSV must contain 'Name', 'Instructor/Presenter', and 'Learning Pathway' columns")
+                df = load_demo_data()
+        except Exception as e:
+            st.error(f"Error processing uploaded file: {str(e)}")
+            df = load_demo_data()
     else:
         st.info("Please upload a CSV file or select another data source.")
-        df = load_demo_data()
-elif data_source == "Load from URL":
-    csv_url = st.sidebar.text_input("CSV URL:", value=DEFAULT_CSV_URL)
-    try:
-        df = pd.read_csv(csv_url)
-    except:
-        st.error("Could not load CSV from URL. Using demo data instead.")
         df = load_demo_data()
 else:
     df = load_demo_data()
 
 # Filter Section
-st.markdown("### 🔍 Search and Filter Courses")
+st.markdown("### 🔍 Search and Filter Training Sessions")
 with st.container():
     st.markdown('<div class="filter-container">', unsafe_allow_html=True)
     
-    col1, col2 = st.columns([3, 2])
+    col1, col2, col3 = st.columns([2, 2, 2])
     
     with col1:
         # Search box
-        search_term = st.text_input("🔎 Search courses by name or ID", placeholder="Type to search...")
+        search_term = st.text_input("🔎 Search by name or instructor", placeholder="Type to search...")
         
     with col2:
-        # Digital proficiency filter
-        selected_proficiency = st.selectbox(
-            "🎯 Filter by Digital Proficiency",
-            ["All"] + digital_proficiencies,
-            help="Filter courses by digital proficiency category"
-        )
+        # Exposure level filter
+        exposure_options = ["All"] + sorted(df['original_exposure'].unique().tolist())
+        selected_exposure = st.selectbox("👥 Filter by Audience Level", exposure_options)
+        
+    with col3:
+        # Specificity filter
+        specificity_options = ["All"] + sorted(df['original_specificity'].unique().tolist())
+        selected_specificity = st.selectbox("🎯 Filter by Specificity", specificity_options)
     
     # Apply filters
     filtered_df = df.copy()
@@ -183,18 +201,23 @@ with st.container():
     if search_term:
         filtered_df = filtered_df[
             filtered_df['name'].str.contains(search_term, case=False, na=False) |
-            filtered_df['course_id'].str.contains(search_term, case=False, na=False)
+            filtered_df['instructor'].str.contains(search_term, case=False, na=False) |
+            filtered_df['description'].str.contains(search_term, case=False, na=False)
         ]
     
-    # Apply digital proficiency filter
-    if selected_proficiency != "All" and 'digital_proficiency' in filtered_df.columns:
-        filtered_df = filtered_df[filtered_df['digital_proficiency'] == selected_proficiency]
+    # Apply exposure filter
+    if selected_exposure != "All":
+        filtered_df = filtered_df[filtered_df['original_exposure'] == selected_exposure]
+    
+    # Apply specificity filter
+    if selected_specificity != "All":
+        filtered_df = filtered_df[filtered_df['original_specificity'] == selected_specificity]
     
     st.markdown('</div>', unsafe_allow_html=True)
 
 # Show filter results
-if search_term or selected_proficiency != "All":
-    st.info(f"Showing {len(filtered_df)} courses matching your filters")
+if search_term or selected_exposure != "All" or selected_specificity != "All":
+    st.info(f"Showing {len(filtered_df)} training sessions matching your filters")
 
 # Pathway selector
 st.markdown("### 🎯 Select Learning Pathways to Display")
@@ -202,13 +225,13 @@ col1, col2, col3, col4 = st.columns(4)
 
 selected_pathways = {}
 with col1:
-    selected_pathways["Research"] = st.checkbox("Research", value=True)
+    selected_pathways["Engineering"] = st.checkbox("Engineering", value=True)
 with col2:
-    selected_pathways["Admin"] = st.checkbox("Admin", value=True)
+    selected_pathways["Operation"] = st.checkbox("Operation", value=True)
 with col3:
-    selected_pathways["Education"] = st.checkbox("Education", value=True)
+    selected_pathways["Research"] = st.checkbox("Research", value=True)
 with col4:
-    selected_pathways["General"] = st.checkbox("General", value=True)
+    selected_pathways["Education"] = st.checkbox("Education", value=True)
 
 # Create the network visualization
 fig = go.Figure()
@@ -225,23 +248,21 @@ for i in range(3):
 # Add course nodes from filtered DataFrame
 for _, course in filtered_df.iterrows():
     if selected_pathways.get(course['pathway'], False):
-        # Add hover text with digital proficiency if available
-        hover_text = f"<b>{course['name']}</b><br>Pathway: {course['pathway']}<br>Level: {course['specificity']}<br>Exposure: {course['exposure']}"
-        if 'digital_proficiency' in course and pd.notna(course['digital_proficiency']):
-            hover_text += f"<br>Digital Proficiency: {course['digital_proficiency']}"
+        # Add hover text
+        hover_text = f"<b>{course['name']}</b><br>Instructor: {course['instructor']}<br>Pathway: {course['pathway']}<br>Audience: {course['original_exposure']}<br>Type: {course['original_specificity']}"
         
         fig.add_trace(go.Scatter(
             x=[course['x']],
             y=[course['y']],
             mode="markers+text",
             marker=dict(
-                size=18,
+                size=20,
                 color=pathways[course['pathway']]["color"],
-                line=dict(color="white", width=1)
+                line=dict(color="white", width=2)
             ),
             text=[course['course_id']],
             textposition="middle center",
-            textfont=dict(color="white", size=7, family="Arial Bold"),
+            textfont=dict(color="white", size=8, family="Arial Bold"),
             name=course['pathway'],
             showlegend=False,
             hovertext=hover_text,
@@ -250,7 +271,7 @@ for _, course in filtered_df.iterrows():
 
 # Update layout
 fig.update_layout(
-    title="Learning Pathway Network",
+    title="AI Training Offers Learning Pathway Network",
     xaxis=dict(
         title="Specificity →",
         tickmode="array",
@@ -260,7 +281,7 @@ fig.update_layout(
         showgrid=False
     ),
     yaxis=dict(
-        title="← Exposure",
+        title="← Audience Experience Level",
         tickmode="array",
         tickvals=[0, 1, 2],
         ticktext=["Never", "Sometimes", "Daily"],
@@ -284,36 +305,22 @@ for i, (pathway, style) in enumerate(pathways.items()):
         st.markdown(f"""
         <div style="display: flex; align-items: center; gap: 10px;">
             <div style="width: 20px; height: 20px; border-radius: 50%; background-color: {style["color"]}; border: 2px solid #333;"></div>
-            <span style="font-weight: 500;">{pathway} ({course_count} courses)</span>
+            <span style="font-weight: 500;">{pathway} ({course_count} sessions)</span>
         </div>
         """, unsafe_allow_html=True)
-
-# Digital Proficiency Summary
-if 'digital_proficiency' in filtered_df.columns:
-    st.markdown("### 💻 Digital Proficiency Distribution")
-    proficiency_counts = filtered_df['digital_proficiency'].value_counts()
-    
-    cols = st.columns(len(digital_proficiencies))
-    for i, prof in enumerate(digital_proficiencies):
-        with cols[i]:
-            count = proficiency_counts.get(prof, 0)
-            st.metric(prof.split(',')[0], count)
-
-# Course details section
-st.markdown("### 📚 Course Details")
-st.markdown("*Hover over any node in the graph to see course information*")
 
 # Summary statistics
 col1, col2, col3, col4 = st.columns(4)
 with col1:
-    st.metric("Total Courses", len(filtered_df))
+    st.metric("Total Sessions", len(filtered_df))
 with col2:
     st.metric("Active Pathways", sum(selected_pathways.values()))
 with col3:
     active_courses = len(filtered_df[filtered_df['pathway'].isin([p for p, sel in selected_pathways.items() if sel])])
-    st.metric("Visible Courses", active_courses)
+    st.metric("Visible Sessions", active_courses)
 with col4:
-    st.metric("Data Source", data_source)
+    unique_instructors = len(filtered_df['instructor'].unique())
+    st.metric("Instructors", unique_instructors)
 
 # Display selected courses in tabs
 if any(selected_pathways.values()):
@@ -325,55 +332,56 @@ if any(selected_pathways.values()):
             pathway_courses = filtered_df[filtered_df['pathway'] == pathway].sort_values(['exposure', 'specificity'])
             
             for _, course in pathway_courses.iterrows():
-                with st.expander(f"**{course['name']}** ({course['specificity']} - {course['exposure']})"):
-                    col1, col2 = st.columns([2, 1])
+                with st.expander(f"**{course['name']}** - {course['instructor']}"):
+                    col1, col2 = st.columns([3, 1])
                     
                     with col1:
-                        st.write(f"**Course ID:** {course['course_id']}")
-                        st.write(f"**Course Type:** {course['specificity']}")
-                        st.write(f"**Experience Level:** {course['exposure']}")
+                        st.write(f"**Training ID:** {course['course_id']}")
+                        st.write(f"**Instructor/Presenter:** {course['instructor']}")
+                        st.write(f"**Audience Level:** {course['original_exposure']}")
+                        st.write(f"**Training Type:** {course['original_specificity']}")
                         st.write(f"**Learning Pathway:** {course['pathway']}")
-                        
-                        if 'digital_proficiency' in course and pd.notna(course['digital_proficiency']):
-                            st.write(f"**Digital Proficiency:** {course['digital_proficiency']}")
-                        
-                        # Additional fields from CSV if available
-                        extra_cols = [col for col in filtered_df.columns if col not in 
-                                    ['course_id', 'name', 'x', 'y', 'pathway', 'specificity', 'exposure', 'digital_proficiency']]
-                        for col in extra_cols:
-                            if pd.notna(course[col]):
-                                st.write(f"**{col.replace('_', ' ').title()}:** {course[col]}")
+                        st.write("**Description:**")
+                        st.write(course['description'])
                     
                     with col2:
-                        # Placeholder for future dropdown functionality
                         st.selectbox(
                             "Select delivery format:",
                             ["Online Self-Paced", "Virtual Instructor-Led", "In-Person Workshop", "Hybrid"],
                             key=f"format_{course['course_id']}"
                         )
                         
-                        st.button("Enroll", key=f"enroll_{course['course_id']}", use_container_width=True)
+                        if st.button("Register Interest", key=f"register_{course['course_id']}", use_container_width=True):
+                            st.success(f"Interest registered for: {course['name']}")
 
 # Instructions
 st.markdown("---")
-st.markdown("### 📖 How to Use This Learning Pathway")
+st.markdown("### 📖 How to Use This Training Pathway")
 st.markdown("""
-1. **Search & Filter**: Use the search box to find specific courses and filter by digital proficiency
-2. **Load Your Data**: Use the sidebar to upload a CSV file, load from URL, or use demo data
-3. **Select Pathways**: Use the checkboxes to display different learning pathways
-4. **Explore Courses**: Hover over nodes in the network to see course details
-5. **Course Information**: Click on the pathway tabs below to see detailed course information
+1. **Search & Filter**: Use the search box to find specific training sessions by name, instructor, or description
+2. **Filter by Level**: Choose audience experience level and training specificity to narrow down options
+3. **Select Pathways**: Use the checkboxes to display different learning pathways (Engineering, Operation, Research, Education)
+4. **Explore Sessions**: Hover over nodes in the network to see detailed training information
+5. **Session Details**: Click on the pathway tabs below to see complete session information and register interest
 
-**Digital Proficiency Categories:**
-- 🎨 **Digital creation, problem-solving and innovation**
-- 📚 **Digital learning and development**
-- 📊 **Information, data and media literacies**
-- 💬 **Digital communication, collaboration and participation**
-- 🌟 **Digital identity and wellbeing**
+**Training Pathways:**
+- 🔴 **Engineering**: Technical development, programming, and AI system building
+- 🔵 **Operation**: Administrative, workflow, and operational AI applications  
+- 🟢 **Research**: Academic research, methodology, and theoretical AI concepts
+- 🟣 **Education**: Teaching, curriculum development, and educational AI applications
 
-**CSV Format**: Your CSV should include columns: course_id, name, x, y, pathway, specificity, exposure, digital_proficiency
+**Audience Experience Levels:**
+- **Lv. 1 - Never used AI**: Beginner level, no prior AI experience
+- **Lv. 2 - Sometimes use AI**: Intermediate level, occasional AI usage
+- **Lv. 3 - Use AI on a daily basis**: Advanced level, regular AI users
+- **Lv. Anyone**: Suitable for all experience levels
+
+**Training Types:**
+- **Lv.1 - Ideas**: Conceptual understanding and awareness
+- **Lv.2 - Hands On**: Practical application and skills
+- **Lv.3 - Issue Specific**: Targeted solutions for specific problems
 """)
 
 # Footer
 st.markdown("---")
-st.info("💡 **Tip**: Add the 'digital_proficiency' column to your CSV file to enable filtering by digital competencies!")
+st.info("💡 **Note**: Training sessions are organized by the Learning Pathway specified in your CSV file. Hover over any node to see session details!")
